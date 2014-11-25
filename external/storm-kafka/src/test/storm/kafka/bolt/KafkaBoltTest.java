@@ -148,8 +148,9 @@ public class KafkaBoltTest {
 
 
     private boolean verifyMessage(String key, String message) {
-        long lastMessageOffset = KafkaUtils.getOffset(simpleConsumer, kafkaConfig.topic, 0, OffsetRequest.LatestTime()) - 1;
-        ByteBufferMessageSet messageAndOffsets = KafkaUtils.fetchMessages(kafkaConfig, simpleConsumer,
+        KafkaUtils kafkaUtils = new KafkaUtils();
+        long lastMessageOffset = kafkaUtils.getOffset(simpleConsumer, kafkaConfig.topic, 0, OffsetRequest.LatestTime()) - 1;
+        ByteBufferMessageSet messageAndOffsets = kafkaUtils.fetchMessages(kafkaConfig, simpleConsumer,
                 new Partition(Broker.fromString(broker.getBrokerConnectionString()), 0), lastMessageOffset);
         MessageAndOffset messageAndOffset = messageAndOffsets.iterator().next();
         Message kafkaMessage = messageAndOffset.message();

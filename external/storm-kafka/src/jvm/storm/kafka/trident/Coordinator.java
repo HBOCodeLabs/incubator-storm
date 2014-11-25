@@ -28,9 +28,13 @@ class Coordinator implements IPartitionedTridentSpout.Coordinator<GlobalPartitio
     private IBrokerReader reader;
     private TridentKafkaConfig config;
 
-    public Coordinator(Map conf, TridentKafkaConfig tridentKafkaConfig) {
+    public Coordinator(Map conf, TridentKafkaConfig tridentKafkaConfig, KafkaUtils kafkaUtils) {
         config = tridentKafkaConfig;
-        reader = KafkaUtils.makeBrokerReader(conf, config);
+        reader = kafkaUtils.makeBrokerReader(conf, config);
+    }
+
+    public Coordinator(Map conf, TridentKafkaConfig tridentKafkaConfig) {
+        this(conf, tridentKafkaConfig, new KafkaUtils());
     }
 
     @Override

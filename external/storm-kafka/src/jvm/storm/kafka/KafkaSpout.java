@@ -33,6 +33,8 @@ import java.util.*;
 // TODO: need to add blacklisting
 // TODO: need to make a best effort to not re-emit messages if don't have to
 public class KafkaSpout extends BaseRichSpout {
+    private final KafkaUtils _kafkaUtils;
+
     public static class MessageAndRealOffset {
         public Message msg;
         public long offset;
@@ -62,8 +64,13 @@ public class KafkaSpout extends BaseRichSpout {
 
     int _currPartitionIndex = 0;
 
-    public KafkaSpout(SpoutConfig spoutConf) {
+    public KafkaSpout(SpoutConfig spoutConf, KafkaUtils kafkaUtils) {
         _spoutConfig = spoutConf;
+        _kafkaUtils = kafkaUtils;
+    }
+
+    public KafkaSpout(SpoutConfig spoutConf) {
+        this(spoutConf, new KafkaUtils());
     }
 
     @Override
@@ -84,7 +91,7 @@ public class KafkaSpout extends BaseRichSpout {
         stateConf.put(Config.TRANSACTIONAL_ZOOKEEPER_ROOT, _spoutConfig.zkRoot);
         _state = new ZkState(stateConf);
 
-        _connections = new DynamicPartitionConnections(_spoutConfig, KafkaUtils.makeBrokerReader(conf, _spoutConfig));
+        _connections = new DynamicPartitionConnections(_spoutConfig, _kafkaUtils.makeBrokerReader(conf, _spoutConfig));
 
         // using TransactionalState like this is a hack
         int totalTasks = context.getComponentTasks(context.getThisComponentId()).size();
@@ -95,7 +102,7 @@ public class KafkaSpout extends BaseRichSpout {
         }
 
         context.registerMetric("kafkaOffset", new IMetric() {
-            KafkaUtils.KafkaOffsetMetric _kafkaOffsetMetric = new KafkaUtils.KafkaOffsetMetric(_spoutConfig.topic, _connections);
+            KafkaUtils.KafkaOffsetMetric _kafkaOffsetMetric = _kafkaUtils.new KafkaOffsetMetric(_spoutConfig.topic, _connections);
 
             @Override
             public Object getValueAndReset() {

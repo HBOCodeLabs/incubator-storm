@@ -49,6 +49,7 @@ public class TridentKafkaEmitter {
 
     private DynamicPartitionConnections _connections;
     private String _topologyName;
+    private KafkaUtils _kafkaUtils;
     private KafkaUtils.KafkaOffsetMetric _kafkaOffsetMetric;
     private ReducedMetric _kafkaMeanFetchLatencyMetric;
     private CombinedMetric _kafkaMaxFetchLatencyMetric;
@@ -56,11 +57,18 @@ public class TridentKafkaEmitter {
     private String _topologyInstanceId;
 
     public TridentKafkaEmitter(Map conf, TopologyContext context, TridentKafkaConfig config, String topologyInstanceId) {
+        this(conf, context, config, topologyInstanceId, new KafkaUtils());
+    }
+
+    public TridentKafkaEmitter(Map conf, TopologyContext context, TridentKafkaConfig config,
+                               String topologyInstanceId, KafkaUtils kafkaUtils) {
+
+        _kafkaUtils = kafkaUtils;
         _config = config;
         _topologyInstanceId = topologyInstanceId;
-        _connections = new DynamicPartitionConnections(_config, KafkaUtils.makeBrokerReader(conf, _config));
+        _connections = new DynamicPartitionConnections(_config, _kafkaUtils.makeBrokerReader(conf, _config));
         _topologyName = (String) conf.get(Config.TOPOLOGY_NAME);
-        _kafkaOffsetMetric = new KafkaUtils.KafkaOffsetMetric(_config.topic, _connections);
+        _kafkaOffsetMetric = _kafkaUtils.new KafkaOffsetMetric(_config.topic, _connections);
         context.registerMetric("kafkaOffset", _kafkaOffsetMetric, _config.metricsTimeBucketSizeInSecs);
         _kafkaMeanFetchLatencyMetric = context.registerMetric("kafkaFetchAvg", new MeanReducer(), _config.metricsTimeBucketSizeInSecs);
         _kafkaMaxFetchLatencyMetric = context.registerMetric("kafkaFetchMax", new MaxMetric(), _config.metricsTimeBucketSizeInSecs);
@@ -103,12 +111,12 @@ public class TridentKafkaEmitter {
                 lastInstanceId = (String) lastTopoMeta.get("id");
             }
             if (_config.forceFromStart && !_topologyInstanceId.equals(lastInstanceId)) {
-                offset = KafkaUtils.getOffset(consumer, _config.topic, partition.partition, _config.startOffsetTime);
+                offset = _kafkaUtils.getOffset(consumer, _config.topic, partition.partition, _config.startOffsetTime);
             } else {
                 offset = (Long) lastMeta.get("nextOffset");
             }
         } else {
-            offset = KafkaUtils.getOffset(consumer, _config.topic, partition.partition, _config);
+            offset = _kafkaUtils.getOffset(consumer, _config.topic, partition.partition, _config);
         }
         ByteBufferMessageSet msgs = fetchMessages(consumer, partition, offset);
         long endoffset = offset;
@@ -129,7 +137,7 @@ public class TridentKafkaEmitter {
 
     private ByteBufferMessageSet fetchMessages(SimpleConsumer consumer, Partition partition, long offset) {
         long start = System.nanoTime();
-        ByteBufferMessageSet msgs = KafkaUtils.fetchMessages(_config, consumer, partition, offset);
+        ByteBufferMessageSet msgs = _kafkaUtils.fetchMessages(_config, consumer, partition, offset);
         long end = System.nanoTime();
         long millis = (end - start) / 1000000;
         _kafkaMeanFetchLatencyMetric.update(millis);
@@ -167,7 +175,7 @@ public class TridentKafkaEmitter {
     }
 
     private void emit(TridentCollector collector, Message msg) {
-        Iterable<List<Object>> values = KafkaUtils.generateTuples(_config, msg);
+        Iterable<List<Object>> values = _kafkaUtils.generateTuples(_config, msg);
         if (values != null) {
             for (List<Object> value : values) {
                 collector.emit(value);

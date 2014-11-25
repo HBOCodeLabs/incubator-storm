@@ -50,7 +50,9 @@ public class KafkaUtils {
     private static final int NO_OFFSET = -5;
 
 
-    public static IBrokerReader makeBrokerReader(Map stormConf, KafkaConfig conf) {
+    public KafkaUtils() { }
+
+    public IBrokerReader makeBrokerReader(Map stormConf, KafkaConfig conf) {
         if (conf.hosts instanceof StaticHosts) {
             return new StaticBrokerReader(((StaticHosts) conf.hosts).getPartitionInformation());
         } else {
@@ -59,7 +61,7 @@ public class KafkaUtils {
     }
 
 
-    public static long getOffset(SimpleConsumer consumer, String topic, int partition, KafkaConfig config) {
+    public long getOffset(SimpleConsumer consumer, String topic, int partition, KafkaConfig config) {
         long startOffsetTime = kafka.api.OffsetRequest.LatestTime();
         if ( config.forceFromStart ) {
             startOffsetTime = config.startOffsetTime;
@@ -67,7 +69,7 @@ public class KafkaUtils {
         return getOffset(consumer, topic, partition, startOffsetTime);
     }
 
-    public static long getOffset(SimpleConsumer consumer, String topic, int partition, long startOffsetTime) {
+    public long getOffset(SimpleConsumer consumer, String topic, int partition, long startOffsetTime) {
         TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
         Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo = new HashMap<TopicAndPartition, PartitionOffsetRequestInfo>();
         requestInfo.put(topicAndPartition, new PartitionOffsetRequestInfo(startOffsetTime, 1));
@@ -82,7 +84,7 @@ public class KafkaUtils {
         }
     }
 
-    public static class KafkaOffsetMetric implements IMetric {
+    public class KafkaOffsetMetric implements IMetric {
         Map<Partition, Long> _partitionToOffset = new HashMap<Partition, Long>();
         Set<Partition> _partitions;
         String _topic;
@@ -155,7 +157,7 @@ public class KafkaUtils {
         }
     }
 
-    public static ByteBufferMessageSet fetchMessages(KafkaConfig config, SimpleConsumer consumer, Partition partition, long offset) throws UpdateOffsetException {
+    public ByteBufferMessageSet fetchMessages(KafkaConfig config, SimpleConsumer consumer, Partition partition, long offset) throws UpdateOffsetException {
         ByteBufferMessageSet msgs = null;
         String topic = config.topic;
         int partitionId = partition.partition;
@@ -163,6 +165,7 @@ public class KafkaUtils {
         FetchRequest fetchRequest = builder.addFetch(topic, partitionId, offset, config.fetchSizeBytes).
                 clientId(config.clientId).maxWait(config.fetchMaxWait).build();
         FetchResponse fetchResponse;
+
         try {
             fetchResponse = consumer.fetch(fetchRequest);
         } catch (Exception e) {
@@ -196,7 +199,7 @@ public class KafkaUtils {
     }
 
 
-    public static Iterable<List<Object>> generateTuples(KafkaConfig kafkaConfig, Message msg) {
+    public Iterable<List<Object>> generateTuples(KafkaConfig kafkaConfig, Message msg) {
         Iterable<List<Object>> tups;
         ByteBuffer payload = msg.payload();
         if (payload == null) {
@@ -212,7 +215,7 @@ public class KafkaUtils {
     }
 
 
-    public static List<Partition> calculatePartitionsForTask(GlobalPartitionInformation partitionInformation, int totalTasks, int taskIndex) {
+    public List<Partition> calculatePartitionsForTask(GlobalPartitionInformation partitionInformation, int totalTasks, int taskIndex) {
         Preconditions.checkArgument(taskIndex < totalTasks, "task index must be less that total tasks");
         List<Partition> partitions = partitionInformation.getOrderedPartitions();
         int numPartitions = partitions.size();
@@ -228,7 +231,7 @@ public class KafkaUtils {
         return taskPartitions;
     }
 
-    private static void logPartitionMapping(int totalTasks, int taskIndex, List<Partition> taskPartitions) {
+    private void logPartitionMapping(int totalTasks, int taskIndex, List<Partition> taskPartitions) {
         String taskPrefix = taskId(taskIndex, totalTasks);
         if (taskPartitions.isEmpty()) {
             LOG.warn(taskPrefix + "no partitions assigned");

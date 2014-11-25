@@ -42,6 +42,7 @@ import static org.junit.Assert.assertThat;
 
 public class KafkaUtilsTest {
 
+    private KafkaUtils kafkaUtils;
     private KafkaTestBroker broker;
     private SimpleConsumer simpleConsumer;
     private KafkaConfig config;
@@ -49,6 +50,7 @@ public class KafkaUtilsTest {
 
     @Before
     public void setup() {
+        kafkaUtils = new KafkaUtils();
         broker = new KafkaTestBroker();
         GlobalPartitionInformation globalPartitionInformation = new GlobalPartitionInformation();
         globalPartitionInformation.addPartition(0, Broker.fromString(broker.getBrokerConnectionString()));
@@ -66,7 +68,7 @@ public class KafkaUtilsTest {
 
     @Test(expected = FailedFetchException.class)
     public void topicDoesNotExist() throws Exception {
-        KafkaUtils.fetchMessages(config, simpleConsumer, new Partition(Broker.fromString(broker.getBrokerConnectionString()), 0), 0);
+        kafkaUtils.fetchMessages(config, simpleConsumer, new Partition(Broker.fromString(broker.getBrokerConnectionString()), 0), 0);
     }
 
     @Test(expected = FailedFetchException.class)
@@ -75,7 +77,7 @@ public class KafkaUtilsTest {
         broker.shutdown();
         SimpleConsumer simpleConsumer = new SimpleConsumer("localhost", port, 100, 1024, "testClient");
         try {
-            KafkaUtils.fetchMessages(config, simpleConsumer, new Partition(Broker.fromString(broker.getBrokerConnectionString()), 0), OffsetRequest.LatestTime());
+            kafkaUtils.fetchMessages(config, simpleConsumer, new Partition(Broker.fromString(broker.getBrokerConnectionString()), 0), OffsetRequest.LatestTime());
         } finally {
             simpleConsumer.close();
         }
@@ -85,8 +87,8 @@ public class KafkaUtilsTest {
     public void fetchMessage() throws Exception {
         String value = "test";
         createTopicAndSendMessage(value);
-        long offset = KafkaUtils.getOffset(simpleConsumer, config.topic, 0, OffsetRequest.LatestTime()) - 1;
-        ByteBufferMessageSet messageAndOffsets = KafkaUtils.fetchMessages(config, simpleConsumer,
+        long offset = kafkaUtils.getOffset(simpleConsumer, config.topic, 0, OffsetRequest.LatestTime()) - 1;
+        ByteBufferMessageSet messageAndOffsets = kafkaUtils.fetchMessages(config, simpleConsumer,
                 new Partition(Broker.fromString(broker.getBrokerConnectionString()), 0), offset);
         String message = new String(Utils.toByteArray(messageAndOffsets.iterator().next().message().payload()));
         assertThat(message, is(equalTo(value)));
@@ -95,7 +97,7 @@ public class KafkaUtilsTest {
     @Test(expected = FailedFetchException.class)
     public void fetchMessagesWithInvalidOffsetAndDefaultHandlingDisabled() throws Exception {
         config.useStartOffsetTimeIfOffsetOutOfRange = false;
-        KafkaUtils.fetchMessages(config, simpleConsumer,
+        kafkaUtils.fetchMessages(config, simpleConsumer,
                 new Partition(Broker.fromString(broker.getBrokerConnectionString()), 0), -99);
     }
 
@@ -104,7 +106,7 @@ public class KafkaUtilsTest {
         config = new KafkaConfig(brokerHosts, "newTopic");
         String value = "test";
         createTopicAndSendMessage(value);
-        KafkaUtils.fetchMessages(config, simpleConsumer,
+        kafkaUtils.fetchMessages(config, simpleConsumer,
                 new Partition(Broker.fromString(broker.getBrokerConnectionString()), 0), -99);
     }
 
@@ -113,8 +115,8 @@ public class KafkaUtilsTest {
         config.forceFromStart = false;
         config.startOffsetTime = OffsetRequest.EarliestTime();
         createTopicAndSendMessage();
-        long latestOffset = KafkaUtils.getOffset(simpleConsumer, config.topic, 0, OffsetRequest.LatestTime());
-        long offsetFromConfig = KafkaUtils.getOffset(simpleConsumer, config.topic, 0, config);
+        long latestOffset = kafkaUtils.getOffset(simpleConsumer, config.topic, 0, OffsetRequest.LatestTime());
+        long offsetFromConfig = kafkaUtils.getOffset(simpleConsumer, config.topic, 0, config);
         assertThat(latestOffset, is(equalTo(offsetFromConfig)));
     }
 
@@ -123,8 +125,8 @@ public class KafkaUtilsTest {
         config.forceFromStart = true;
         config.startOffsetTime = OffsetRequest.EarliestTime();
         createTopicAndSendMessage();
-        long earliestOffset = KafkaUtils.getOffset(simpleConsumer, config.topic, 0, OffsetRequest.EarliestTime());
-        long offsetFromConfig = KafkaUtils.getOffset(simpleConsumer, config.topic, 0, config);
+        long earliestOffset = kafkaUtils.getOffset(simpleConsumer, config.topic, 0, OffsetRequest.EarliestTime());
+        long offsetFromConfig = kafkaUtils.getOffset(simpleConsumer, config.topic, 0, config);
         assertThat(earliestOffset, is(equalTo(offsetFromConfig)));
     }
 
@@ -143,7 +145,7 @@ public class KafkaUtilsTest {
         createTopicAndSendMessage(key, value);
         ByteBufferMessageSet messageAndOffsets = getLastMessage();
         for (MessageAndOffset msg : messageAndOffsets) {
-            Iterable<List<Object>> lists = KafkaUtils.generateTuples(config, msg.message());
+            Iterable<List<Object>> lists = kafkaUtils.generateTuples(config, msg.message());
             assertEquals(ImmutableMap.of(key, value), lists.iterator().next().get(0));
         }
     }
@@ -162,14 +164,14 @@ public class KafkaUtilsTest {
         createTopicAndSendMessage(key, value);
         ByteBufferMessageSet messageAndOffsets = getLastMessage();
         for (MessageAndOffset msg : messageAndOffsets) {
-            Iterable<List<Object>> lists = KafkaUtils.generateTuples(config, msg.message());
+            Iterable<List<Object>> lists = kafkaUtils.generateTuples(config, msg.message());
             assertEquals(value, lists.iterator().next().get(0));
         }
     }
 
     private ByteBufferMessageSet getLastMessage() {
-        long offsetOfLastMessage = KafkaUtils.getOffset(simpleConsumer, config.topic, 0, OffsetRequest.LatestTime()) - 1;
-        return KafkaUtils.fetchMessages(config, simpleConsumer, new Partition(Broker.fromString(broker.getBrokerConnectionString()), 0), offsetOfLastMessage);
+        long offsetOfLastMessage = kafkaUtils.getOffset(simpleConsumer, config.topic, 0, OffsetRequest.LatestTime()) - 1;
+        return kafkaUtils.fetchMessages(config, simpleConsumer, new Partition(Broker.fromString(broker.getBrokerConnectionString()), 0), offsetOfLastMessage);
     }
 
     private void runGetValueOnlyTuplesTest() {
@@ -177,7 +179,7 @@ public class KafkaUtilsTest {
         createTopicAndSendMessage(null, value);
         ByteBufferMessageSet messageAndOffsets = getLastMessage();
         for (MessageAndOffset msg : messageAndOffsets) {
-            Iterable<List<Object>> lists = KafkaUtils.generateTuples(config, msg.message());
+            Iterable<List<Object>> lists = kafkaUtils.generateTuples(config, msg.message());
             assertEquals(value, lists.iterator().next().get(0));
         }
     }
@@ -221,7 +223,7 @@ public class KafkaUtilsTest {
         GlobalPartitionInformation globalPartitionInformation = TestUtils.buildPartitionInfo(numPartitions);
         int numTasks = numPartitions / partitionsPerTask;
         for (int i = 0 ; i < numTasks ; i++) {
-            assertEquals(partitionsPerTask, KafkaUtils.calculatePartitionsForTask(globalPartitionInformation, numTasks, i).size());
+            assertEquals(partitionsPerTask, kafkaUtils.calculatePartitionsForTask(globalPartitionInformation, numTasks, i).size());
         }
     }
 
@@ -229,13 +231,13 @@ public class KafkaUtilsTest {
     public void moreTasksThanPartitions() {
         GlobalPartitionInformation globalPartitionInformation = TestUtils.buildPartitionInfo(1);
         int numTasks = 2;
-        assertEquals(1, KafkaUtils.calculatePartitionsForTask(globalPartitionInformation, numTasks, 0).size());
-        assertEquals(0, KafkaUtils.calculatePartitionsForTask(globalPartitionInformation, numTasks, 1).size());
+        assertEquals(1, kafkaUtils.calculatePartitionsForTask(globalPartitionInformation, numTasks, 0).size());
+        assertEquals(0, kafkaUtils.calculatePartitionsForTask(globalPartitionInformation, numTasks, 1).size());
     }
 
     @Test (expected = IllegalArgumentException.class )
     public void assignInvalidTask() {
         GlobalPartitionInformation globalPartitionInformation = new GlobalPartitionInformation();
-        KafkaUtils.calculatePartitionsForTask(globalPartitionInformation, 1, 1);
+        kafkaUtils.calculatePartitionsForTask(globalPartitionInformation, 1, 1);
     }
 }

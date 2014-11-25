@@ -26,7 +26,6 @@ import backtype.storm.spout.SpoutOutputCollector;
 import com.google.common.collect.ImmutableMap;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.javaapi.message.ByteBufferMessageSet;
-import kafka.message.ByteBufferMessageSet$;
 import kafka.message.MessageAndOffset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +47,8 @@ public class PartitionManager {
     private SortedMap<Long,Long> _pending = new TreeMap<Long,Long>();
     private final FailedMsgRetryManager _failedMsgRetryManager;
 
+    private final KafkaUtils _kafkaUtils;
+
     // retryRecords key = Kafka offset, value = retry info for the given message
     Long _committedTo;
     LinkedList<MessageAndRealOffset> _waitingToEmit = new LinkedList<MessageAndRealOffset>();
@@ -59,7 +60,16 @@ public class PartitionManager {
     ZkState _state;
     Map _stormConf;
     long numberFailed, numberAcked;
-    public PartitionManager(DynamicPartitionConnections connections, String topologyInstanceId, ZkState state, Map stormConf, SpoutConfig spoutConfig, Partition id) {
+
+    public PartitionManager(DynamicPartitionConnections connections, String topologyInstanceId, ZkState state,
+                            Map stormConf, SpoutConfig spoutConfig, Partition id) {
+        this(connections, topologyInstanceId, state, stormConf, spoutConfig, id, new KafkaUtils());
+    }
+
+    public PartitionManager(DynamicPartitionConnections connections, String topologyInstanceId, ZkState state,
+                            Map stormConf, SpoutConfig spoutConfig, Partition id, KafkaUtils kafkaUtils) {
+
+        _kafkaUtils = kafkaUtils;
         _partition = id;
         _connections = connections;
         _spoutConfig = spoutConfig;
@@ -87,13 +97,13 @@ public class PartitionManager {
             LOG.warn("Error reading and/or parsing at ZkNode: " + path, e);
         }
 
-        Long currentOffset = KafkaUtils.getOffset(_consumer, spoutConfig.topic, id.partition, spoutConfig);
+        Long currentOffset = _kafkaUtils.getOffset(_consumer, spoutConfig.topic, id.partition, spoutConfig);
 
         if (jsonTopologyId == null || jsonOffset == null) { // failed to parse JSON?
             _committedTo = currentOffset;
             LOG.info("No partition information found, using configuration to determine offset");
         } else if (!topologyInstanceId.equals(jsonTopologyId) && spoutConfig.forceFromStart) {
-            _committedTo = KafkaUtils.getOffset(_consumer, spoutConfig.topic, id.partition, spoutConfig.startOffsetTime);
+            _committedTo = _kafkaUtils.getOffset(_consumer, spoutConfig.topic, id.partition, spoutConfig.startOffsetTime);
             LOG.info("Topology change detected and reset from start forced, using configuration to determine offset");
         } else {
             _committedTo = jsonOffset;
@@ -135,7 +145,7 @@ public class PartitionManager {
             if (toEmit == null) {
                 return EmitState.NO_EMITTED;
             }
-            Iterable<List<Object>> tups = KafkaUtils.generateTuples(_spoutConfig, toEmit.msg);
+            Iterable<List<Object>> tups = _kafkaUtils.generateTuples(_spoutConfig, toEmit.msg);
             if (tups != null) {
                 for (List<Object> tup : tups) {
                     collector.emit(tup, new KafkaMessageId(_partition, toEmit.offset));
@@ -166,9 +176,9 @@ public class PartitionManager {
 
         ByteBufferMessageSet msgs = null;
         try {
-            msgs = KafkaUtils.fetchMessages(_spoutConfig, _consumer, _partition, offset);
+            msgs = _kafkaUtils.fetchMessages(_spoutConfig, _consumer, _partition, offset);
         } catch (UpdateOffsetException e) {
-            _emittedToOffset = KafkaUtils.getOffset(_consumer, _spoutConfig.topic, _partition.partition, _spoutConfig);
+            _emittedToOffset = _kafkaUtils.getOffset(_consumer, _spoutConfig.topic, _partition.partition, _spoutConfig);
             LOG.warn("Using new offset: {}", _emittedToOffset);
             // fetch failed, so don't update the metrics
             return;

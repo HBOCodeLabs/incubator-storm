@@ -40,6 +40,7 @@ public class ZkCoordinator implements PartitionCoordinator {
     DynamicBrokersReader _reader;
     ZkState _state;
     Map _stormConf;
+    KafkaUtils _kafkaUtils = new KafkaUtils();
 
     public ZkCoordinator(DynamicPartitionConnections connections, Map stormConf, SpoutConfig spoutConfig, ZkState state, int taskIndex, int totalTasks, String topologyInstanceId) {
         this(connections, stormConf, spoutConfig, state, taskIndex, totalTasks, topologyInstanceId, buildReader(stormConf, spoutConfig));
@@ -77,7 +78,7 @@ public class ZkCoordinator implements PartitionCoordinator {
         try {
             LOG.info(taskId(_taskIndex, _totalTasks) + "Refreshing partition manager connections");
             GlobalPartitionInformation brokerInfo = _reader.getBrokerInfo();
-            List<Partition> mine = KafkaUtils.calculatePartitionsForTask(brokerInfo, _totalTasks, _taskIndex);
+            List<Partition> mine = _kafkaUtils.calculatePartitionsForTask(brokerInfo, _totalTasks, _taskIndex);
 
             Set<Partition> curr = _managers.keySet();
             Set<Partition> newPartitions = new HashSet<Partition>(mine);
@@ -109,5 +110,9 @@ public class ZkCoordinator implements PartitionCoordinator {
     @Override
     public PartitionManager getManager(Partition partition) {
         return _managers.get(partition);
+    }
+
+    public void setKafkaUtils(KafkaUtils kafkaUtils) {
+        this._kafkaUtils = kafkaUtils;
     }
 }
