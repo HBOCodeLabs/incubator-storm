@@ -37,6 +37,7 @@ import storm.kafka.trident.StaticBrokerReader;
 import storm.kafka.trident.ZkBrokerReader;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
@@ -44,7 +45,7 @@ import java.nio.channels.UnresolvedAddressException;
 import java.util.*;
 
 
-public class KafkaUtils {
+public class KafkaUtils implements Serializable {
 
     public static final Logger LOG = LoggerFactory.getLogger(KafkaUtils.class);
     private static final int NO_OFFSET = -5;
