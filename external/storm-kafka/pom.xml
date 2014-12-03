@@ -20,7 +20,7 @@
 
     <parent>
         <artifactId>storm</artifactId>
-        <groupId>org.apache.storm</groupId>
+        <groupId>com.hbo.hurley</groupId>
         <version>0.10.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
@@ -55,6 +55,18 @@
         <sourceDirectory>src/jvm</sourceDirectory>
         <testSourceDirectory>src/test</testSourceDirectory>
     </build>
+    <distributionManagement>
+        <repository>
+            <id>archiva.internal</id>
+            <name>Hurley Maven Repository</name>
+            <url>http://maven.hurley.hbo.com:8000/repository/internal/</url>
+        </repository>
+        <snapshotRepository>
+            <id>archiva.snapshots</id>
+            <name>Hurley Maven Snapshot Repository</name>
+            <url>http://maven.hurley.hbo.com:8000/repository/snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
     <dependencies>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -129,7 +141,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.apache.storm</groupId>
+            <groupId>com.hbo.hurley</groupId>
             <artifactId>storm-core</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
